@@ -2,35 +2,72 @@ using UnityEngine;
 
 public class Desacelerador : MonoBehaviour
 {
-    public float fatorDeDesaceleracao = 0.5f; // diminui na metade
-    public float duracao = 3f; // duração do efeito em segundos
-    public GameObject pocaPrefab;
+    public float fatorDeDesaceleracao = 0.5f;
+    public float duracao = 3f;
+    public float tempoFlutuando = 6f;
+    public float amplitude = 0.2f;
+    public float frequencia = 2f;
 
-    private void OnTriggerEnter(Collider other)
+    private bool atingiuChao = false;
+    private float tempoRestante;
+    private bool coletado = false;
+    private Vector3 posicaoInicial;
+    private Rigidbody rb;
+
+    void Start()
     {
-        Jogador jogador = other.GetComponent<Jogador>();
-        if (jogador != null)
+        rb = GetComponent<Rigidbody>();
+        tempoRestante = tempoFlutuando;
+    }
+
+    void Update()
+    {
+        if (atingiuChao)
         {
-            jogador.AplicarDebuff(duracao, fatorDeDesaceleracao);
-            Destroy(gameObject);
+            float novaY = posicaoInicial.y + Mathf.Sin(Time.time * frequencia) * amplitude;
+            transform.position = new Vector3(transform.position.x, novaY, transform.position.z);
+
+            tempoRestante -= Time.deltaTime;
+            if (tempoRestante <= 0)
+                Destroy(gameObject);
+
+            transform.Rotate(Vector3.up * 50f * Time.deltaTime);
         }
     }
 
     private void OnCollisionEnter(Collision collision)
     {
-        if (collision.gameObject.CompareTag("Ilha"))
+        if (!atingiuChao && collision.gameObject.CompareTag("Ilha"))
         {
-            Vector3 pontoColisao = collision.contacts[0].point;
+            atingiuChao = true;
+            rb.angularVelocity = Vector3.zero;
+            rb.angularVelocity = Vector3.zero;
 
-            if (Physics.Raycast(pontoColisao + Vector3.up, Vector3.down, out RaycastHit hit, 2f))
+            if (Physics.Raycast(transform.position + Vector3.up, Vector3.down, out RaycastHit hit, 3f))
             {
-                Instantiate(pocaPrefab, hit.point, Quaternion.identity);
+                transform.position = hit.point + Vector3.up * 0.05f;
             }
             else
             {
-                Instantiate(pocaPrefab, pontoColisao, Quaternion.identity);
+                transform.position += Vector3.up * 0.2f;
             }
 
+            rb.isKinematic = true;
+            rb.useGravity = false;
+
+            posicaoInicial = transform.position;
+        }
+    }
+
+    private void OnTriggerEnter(Collider other)
+    {
+        if (coletado) return;
+
+        Jogador jogador = other.GetComponent<Jogador>();
+        if (jogador != null)
+        {
+            jogador.AplicarDebuff(duracao, fatorDeDesaceleracao);
+            coletado = true;
             Destroy(gameObject);
         }
     }
